@@ -31,10 +31,10 @@ import FontFaceObserver from 'fontfaceobserver'
 import { fontMinWithDraw, font2style } from '@/utils/widgets/loadFontRule'
 import designBoard from '@/components/modules/layout/designBoard/index.vue'
 import { useRoute } from 'vue-router'
-import { TPageState } from '@/store/design/canvas/d'
-import { TdWidgetData } from '@/store/design/widget'
+import { useTemplateStore } from '@/store'
 
 const route = useRoute()
+const templateStore = useTemplateStore()
 
 const pageGroup = ref<{pageData: TPageState, dWidgets: TdWidgetData[], zoom: number}[]>([])
 
@@ -57,29 +57,40 @@ async function load() {
     const postData = {
       id: id || tempid
     }
-    const { data } = await api.home[id ? 'getWorks' : 'getTempDetail'](postData)
-    let contentGroup = JSON.parse(data)
+    try {
+      let data
+      
+      if (tempid && !id) {
+        // 使用新后端API获取模板详情
+        const template = await templateStore.fetchTemplateById(tempid as string)
+        data = template.data
+      } else {
+        // 使用旧API获取作品
+        const result = await api.home[id ? 'getWorks' : 'getTempDetail'](postData)
+        data = result.data
+      }
+      
+      let contentGroup = JSON.parse(data)
+      contentGroup = Array.isArray(contentGroup) ? contentGroup : [contentGroup]
 
-    contentGroup = Array.isArray(contentGroup) ? contentGroup : [contentGroup]
+      for (let i = 0; i < contentGroup.length; i++) {
+        const { global, layers } = contentGroup[i]
+        let content = {page: global, widgets: layers}
 
-    for (let i = 0; i < contentGroup.length; i++) {
-      const { global, layers } = contentGroup[i]
-      let content = {page: global, widgets: layers}
+        const widgets = content.widgets
+        const zoom = controlScale(content.page?.width)
 
-      const widgets = content.widgets
-      const zoom = controlScale(content.page?.width)
- 
-      // 移除背景图，作为独立事件
-      backgroundImage = content.page?.backgroundImage
-      backgroundImage && delete content.page.backgroundImage
+        // 移除背景图，作为独立事件
+        backgroundImage = content.page?.backgroundImage
+        backgroundImage && delete content.page.backgroundImage
 
-      await nextTick()
+        await nextTick()
 
-      pageGroup.value.push({
-        pageData: content.page,
-        dWidgets: widgets,
-        zoom,
-      })
+        pageGroup.value.push({
+          pageData: content.page,
+          dWidgets: widgets,
+          zoom,
+        })
 
       const imgsData: HTMLImageElement[] = []
       const svgsData: HTMLImageElement[] = []
@@ -128,14 +139,41 @@ async function load() {
         await preload2.svgs()
         // console.log('3. svg yes')
       } catch (e) {
-        console.log(e)
+        console.log('资源加载失败:', e)
       }
+      }
+    } catch (error) {
+      console.error('加载模板失败:', error)
+      // 如果新后端API失败，回退到旧API
       try {
-        await Promise.all(fontLoaders)
-        // console.log('4. font yes')
-      } catch (e) {
-        // console.log(e)
+        const { data } = await api.home[id ? 'getWorks' : 'getTempDetail'](postData)
+        let contentGroup = JSON.parse(data)
+
+        contentGroup = Array.isArray(contentGroup) ? contentGroup : [contentGroup]
+
+        for (let i = 0; i < contentGroup.length; i++) {
+          const { global, layers } = contentGroup[i]
+          let content = {page: global, widgets: layers}
+
+          const widgets = content.widgets
+          const zoom = controlScale(content.page?.width)
+
+          // 移除背景图，作为独立事件
+          backgroundImage = content.page?.backgroundImage
+          backgroundImage && delete content.page.backgroundImage
+
+          await nextTick()
+
+          pageGroup.value.push({
+            pageData: content.page,
+            dWidgets: widgets,
+            zoom,
+          })
+        }
+      } catch (fallbackError) {
+        console.error('回退API也失败:', fallbackError)
       }
+    }
       loadFlag = true
       console.log('--> now u can start generate artboard to html!')
       setTimeout(() => {

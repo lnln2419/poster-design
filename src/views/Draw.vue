@@ -19,7 +19,7 @@ import zoomControl from '@/components/modules/layout/zoomControl/index.vue'
 import { useRoute } from 'vue-router'
 // import { wGroupSetting } from '@/components/modules/widgets/wGroup/groupSetting'
 import { storeToRefs } from 'pinia'
-import { useCanvasStore, useWidgetStore } from '@/store'
+import { useCanvasStore, useWidgetStore, useTemplateStore } from '@/store'
 
 type TState = {
   style: StyleValue
@@ -33,6 +33,7 @@ const state = reactive<TState>({
 })
 const pageStore = useCanvasStore()
 const widgetStore = useWidgetStore()
+const templateStore = useTemplateStore()
 const { dPage } = storeToRefs(pageStore)
 
 onMounted(() => {
@@ -46,35 +47,90 @@ async function load() {
   let loadFlag = false
   const { id, tempid, tempType: type = 0, index = 0  }: any = route.query 
   if (id || tempid) {
-    const postData = {
-      id: id || tempid,
-      type: Number(type)
-    }
-    const { data, width, height } = await api.home[id ? 'getWorks' : 'getTempDetail'](postData)
-    let content = JSON.parse(data)
-    const isGroupTemplate = Number(type) == 1
-
-    if (Array.isArray(content) && !isGroupTemplate) {
-      const { global, layers } = content[index]
-      content = {page: global, widgets: layers}
-    }
-    const widgets = isGroupTemplate ? content : content.widgets
-    
-    if (isGroupTemplate) {
-      dPage.value.width = width
-      dPage.value.height = height
-      dPage.value.backgroundColor = '#ffffff00'
-      widgetStore.addGroup(content)
-    } else {
-      pageStore.setDPage(content.page)
-      // 移除背景图，作为独立事件
-      backgroundImage = content.page?.backgroundImage
-      backgroundImage && delete content.page.backgroundImage
-      pageStore.setDPage(content.page)
-      if (id) {
-        widgetStore.setDWidgets(widgets)
+    try {
+      let data, width, height
+      
+      if (tempid && !id) {
+        // 使用新后端API获取模板详情
+        const template = await templateStore.fetchTemplateById(tempid as string)
+        data = template.data
+        width = template.width
+        height = template.height
       } else {
-        widgetStore.setTemplate(widgets)
+        // 使用旧API获取作品
+        const postData = {
+          id: id || tempid,
+          type: Number(type)
+        }
+        const result = await api.home[id ? 'getWorks' : 'getTempDetail'](postData)
+        data = result.data
+        width = result.width
+        height = result.height
+      }
+      
+      let content = JSON.parse(data)
+      const isGroupTemplate = Number(type) == 1
+
+      if (Array.isArray(content) && !isGroupTemplate) {
+        const { global, layers } = content[index]
+        content = {page: global, widgets: layers}
+      }
+      const widgets = isGroupTemplate ? content : content.widgets
+      
+      if (isGroupTemplate) {
+        dPage.value.width = width
+        dPage.value.height = height
+        dPage.value.backgroundColor = '#ffffff00'
+        widgetStore.addGroup(content)
+      } else {
+        pageStore.setDPage(content.page)
+        // 移除背景图，作为独立事件
+        backgroundImage = content.page?.backgroundImage
+        backgroundImage && delete content.page.backgroundImage
+        pageStore.setDPage(content.page)
+        if (id) {
+          widgetStore.setDWidgets(widgets)
+        } else {
+          widgetStore.setTemplate(widgets)
+        }
+      }
+    } catch (error) {
+      console.error('加载模板失败:', error)
+      // 如果新后端API失败，回退到旧API
+      try {
+        const postData = {
+          id: id || tempid,
+          type: Number(type)
+        }
+        const { data, width, height } = await api.home[id ? 'getWorks' : 'getTempDetail'](postData)
+        let content = JSON.parse(data)
+        const isGroupTemplate = Number(type) == 1
+
+        if (Array.isArray(content) && !isGroupTemplate) {
+          const { global, layers } = content[index]
+          content = {page: global, widgets: layers}
+        }
+        const widgets = isGroupTemplate ? content : content.widgets
+        
+        if (isGroupTemplate) {
+          dPage.value.width = width
+          dPage.value.height = height
+          dPage.value.backgroundColor = '#ffffff00'
+          widgetStore.addGroup(content)
+        } else {
+          pageStore.setDPage(content.page)
+          // 移除背景图，作为独立事件
+          backgroundImage = content.page?.backgroundImage
+          backgroundImage && delete content.page.backgroundImage
+          pageStore.setDPage(content.page)
+          if (id) {
+            widgetStore.setDWidgets(widgets)
+          } else {
+            widgetStore.setTemplate(widgets)
+          }
+        }
+      } catch (fallbackError) {
+        console.error('回退API也失败:', fallbackError)
       }
     }
 

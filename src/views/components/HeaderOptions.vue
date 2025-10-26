@@ -17,7 +17,6 @@
       <div class="divide__line">|</div>
     </template>
     <el-button v-else style="margin-right: 1rem" @click="jump2Edit">修改模板</el-button>
-    <watermark-option style="margin-right: 0.5rem" />
     <!-- <copyRight> -->
     <slot />
     <!-- <el-button :loading="state.loading" size="large" class="primary-btn" :disabled="tempEditing" plain type="primary" @click="download">下载作品</el-button> -->
@@ -38,9 +37,8 @@ import { useFontStore } from '@/common/methods/fonts'
 // import copyRight from './CopyRight.vue'
 import _config from '@/config'
 import downloadBlob from '@/common/methods/download/downloadBlob'
-import { useControlStore, useHistoryStore, useCanvasStore, useUserStore, useWidgetStore } from '@/store/index'
+import { useControlStore, useHistoryStore, useCanvasStore, useUserStore, useWidgetStore, useTemplateStore } from '@/store/index'
 import { storeToRefs } from 'pinia'
-import watermarkOption from './Watermark.vue'
 
 type TProps = {
   modelValue?: boolean
@@ -74,6 +72,7 @@ const canvasImage = ref<typeof SaveImage | null>(null)
 const pageStore = useCanvasStore()
 const controlStore = useControlStore()
 const historyStore = useHistoryStore()
+const templateStore = useTemplateStore()
 
 const { dPage } = storeToRefs(pageStore)
 const { tempEditing } = storeToRefs(userStore)
@@ -203,40 +202,95 @@ async function load(cb: () => void) {
   if (route.name !== 'Draw') {
     await useFontStore.init() // 初始化加载字体
   }
-  const apiName = tempId && !id ? 'getTempDetail' : 'getWorks'
+  
   if (w_h && !id && !tempId) {
     // 用于初始化画布大小，创建空作品
     const wh: any = w_h.toString().split('*')
     wh[0] && (dPage.value.width = wh[0])
     wh[1] && (dPage.value.height = wh[1])
   }
+  
   if (!id && !tempId) {
     initBoard()
     cb()
     return
   }
-  const { data: content, title, state: _state, width, height } = await api.home[apiName]({ id: id || tempId, type })
-  if (!content) return
-  const data = JSON.parse(content)
-  state.stateBollean = !!_state
-  state.title = title
-  controlStore.setShowMoveable(false) // 清理掉上一次的选择框
-  if (type == 1) {
-    // 加载文字组合组件
-    dPage.value.width = width
-    dPage.value.height = height
-    widgetStore.addGroup(data)
-  } else {
-    if (Array.isArray(data)) {
-      widgetStore.dLayouts = data
-      widgetStore.setDWidgets(widgetStore.getWidgets())
+  
+  try {
+    let content, title, templateState: _state, width, height
+    
+    if (tempId && !id) {
+      // 使用新后端API获取模板详情
+      const template = await templateStore.fetchTemplateById(tempId as string)
+      content = template.data
+      title = template.title || template.name
+      templateState = template.state
+      width = template.width
+      height = template.height
     } else {
-      widgetStore.dLayouts = [{ global: data.page, layers: data.widgets }]
-      id ? widgetStore.setDWidgets(widgetStore.getWidgets()) : widgetStore.setTemplate(widgetStore.getWidgets())
+      // 使用旧API获取作品
+      const result = await api.home.getWorks({ id: id || tempId, type })
+      content = result.data
+      title = result.title
+      templateState = result.state
+      width = result.width
+      height = result.height
     }
-    pageStore.setDPage(pageStore.getDPage())
-    // id ? widgetStore.setDWidgets(data.widgets) : widgetStore.setTemplate(data.widgets)
+    
+    if (!content) return
+    
+    const data = JSON.parse(content)
+    state.stateBollean = !!templateState
+    state.title = title
+    controlStore.setShowMoveable(false) // 清理掉上一次的选择框
+    
+    if (type == 1) {
+      // 加载文字组合组件
+      dPage.value.width = width
+      dPage.value.height = height
+      widgetStore.addGroup(data)
+    } else {
+      if (Array.isArray(data)) {
+        widgetStore.dLayouts = data
+        widgetStore.setDWidgets(widgetStore.getWidgets())
+      } else {
+        widgetStore.dLayouts = [{ global: data.page, layers: data.widgets }]
+        id ? widgetStore.setDWidgets(widgetStore.getWidgets()) : widgetStore.setTemplate(widgetStore.getWidgets())
+      }
+      pageStore.setDPage(pageStore.getDPage())
+    }
+  } catch (error) {
+    console.error('加载模板失败:', error)
+    // 如果新后端API失败，回退到旧API
+    try {
+      const apiName = tempId && !id ? 'getTempDetail' : 'getWorks'
+      const { data: content, title, state: _state, width, height } = await api.home[apiName]({ id: id || tempId, type })
+      if (!content) return
+      
+      const data = JSON.parse(content)
+      state.stateBollean = !!_state
+      state.title = title
+      controlStore.setShowMoveable(false)
+      
+      if (type == 1) {
+        dPage.value.width = width
+        dPage.value.height = height
+        widgetStore.addGroup(data)
+      } else {
+        if (Array.isArray(data)) {
+          widgetStore.dLayouts = data
+          widgetStore.setDWidgets(widgetStore.getWidgets())
+        } else {
+          widgetStore.dLayouts = [{ global: data.page, layers: data.widgets }]
+          id ? widgetStore.setDWidgets(widgetStore.getWidgets()) : widgetStore.setTemplate(widgetStore.getWidgets())
+        }
+        pageStore.setDPage(pageStore.getDPage())
+      }
+    } catch (fallbackError) {
+      console.error('回退API也失败:', fallbackError)
+    }
   }
+  
   cb()
 }
 

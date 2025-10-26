@@ -13,7 +13,6 @@ import { Store, defineStore } from 'pinia'
 
 type TStoreBaseState = {
   loading: boolean | null
-  watermark: string | string[]
   /** fonts */
   fonts: string[]
 }
@@ -21,14 +20,12 @@ type TStoreBaseState = {
 type TUserAction = {
   hideLoading: () => void
   setFonts: (list: string[]) => void
-  changeWatermark: (e: string[] | string) => void
 }
 
 /** Base全局状态管理 */
 const useBaseStore = defineStore<'base', TStoreBaseState, {}, TUserAction>('base', {
   state: () => ({
     loading: null,
-    watermark: ['迅排设计', 'poster-design'],
     fonts: [], // 缓存字体列表
   }),
   actions: {
@@ -40,9 +37,6 @@ const useBaseStore = defineStore<'base', TStoreBaseState, {}, TUserAction>('base
     },
     setFonts(list: string[]) {
       this.fonts = list
-    },
-    changeWatermark(wm: any) {
-      this.watermark = wm
     }
   }
 })

@@ -43,13 +43,18 @@ export async function screenshots(req: any, res: any) {
     const targetUrl = url + id + `${tempType ? '&tempType=' + tempType : ''}` + `&index=${index}`
     queueRun(saveScreenshot, targetUrl, { width, height, path, thumbPath, size, quality })
       .then(() => {
-        res.setHeader('Content-Type', 'image/jpg')
-        // const stats = fs.statSync(path)
-        // res.setHeader('Cache-Control', stats.size)
-        type === 'file' ? res.sendFile(path) : res.sendFile(thumbPath)
+        if (!res.headersSent) {
+          res.setHeader('Content-Type', 'image/jpg')
+          // const stats = fs.statSync(path)
+          // res.setHeader('Cache-Control', stats.size)
+          type === 'file' ? res.sendFile(path) : res.sendFile(thumbPath)
+        }
       })
       .catch((e: any) => {
-        res.json({ code: 500, msg: '图片生成错误' })
+        console.error('截图生成错误:', e)
+        if (!res.headersSent) {
+          res.json({ code: 500, msg: '图片生成错误: ' + (e.message || '未知错误') })
+        }
       })
   } else {
     res.json({ code: 500, msg: '缺少参数，请检查' })
@@ -99,7 +104,10 @@ export async function printscreen(req: any, res: any) {
         }
       })
       .catch((e: any) => {
-        res.json({ code: 500, msg: '图片生成错误!' })
+        console.error('截图生成错误:', e)
+        if (!res.headersSent) {
+          res.json({ code: 500, msg: '图片生成错误: ' + (e.message || '未知错误') })
+        }
       })
   } else {
     res.json({ code: 500, msg: '缺少参数，请检查' })

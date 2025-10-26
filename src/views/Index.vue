@@ -134,15 +134,34 @@ const zoomControlRef = ref<typeof zoomControl | null>(null)
 const controlStore = useControlStore()
 const createDesignRef: Ref<typeof createDesign | null> = ref(null)
 
-const beforeUnload = function (e: Event): any {
-  if (dHistoryStack.value.changes.length > 0) {
-    const confirmationMessage: string = '系统不会自动保存您未修改的内容';
-    (e || window.event).returnValue = (confirmationMessage as any) // Gecko and Trident
-    return confirmationMessage // Gecko and WebKit
-  } else return false
-}
+// 移除不再使用的 beforeUnload 函数，改用现代浏览器兼容的事件
 
-!_config.isDev && window.addEventListener('beforeunload', beforeUnload)
+// 使用现代浏览器兼容的事件监听
+if (!_config.isDev) {
+  // 使用 pagehide 事件替代 beforeunload（更兼容现代浏览器）
+  window.addEventListener('pagehide', (e) => {
+    if (dHistoryStack.value.changes.length > 0 && !e.persisted) {
+      // 自动保存逻辑
+      console.log('页面即将关闭，检测到未保存的更改')
+      // 可以在这里添加自动保存到本地存储的逻辑
+      try {
+        localStorage.setItem('poster_design_autosave', JSON.stringify({
+          timestamp: Date.now(),
+          changes: dHistoryStack.value.changes
+        }))
+      } catch (error) {
+        console.warn('自动保存失败:', error)
+      }
+    }
+  })
+  
+  // 使用 visibilitychange 事件作为备用方案
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && dHistoryStack.value.changes.length > 0) {
+      console.log('页面隐藏，检测到未保存的更改')
+    }
+  })
+}
 
 function jump2home() {
   // const fullPath = window.location.href.split('/')

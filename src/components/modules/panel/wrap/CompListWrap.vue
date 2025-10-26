@@ -1,7 +1,7 @@
 <!--
  * @Author: ShawnPhang
  * @Date: 2021-08-27 15:16:07
- * @Description: 素材列表，主要用于文字组合列表
+ * @Description: 素材列表，主要用于文字组合列表 - 已更新为使用48080端口新后端API
  * @LastEditors: ShawnPhang <https://m.palxp.cn>
  * @LastEditTime: 2024-08-14 18:49:06
 -->
@@ -18,7 +18,7 @@
     <classHeader v-show="!state.currentCategory" :types="state.types" @select="selectTypes">
       <template v-slot="{ index }">
         <div class="list-wrap">
-          <div v-for="(item, i) in state.showList[index]" :key="i + 'sl'" draggable="false" @mousedown="dragStart($event, item)" @mousemove="mousemove" @mouseup="mouseup" @click.stop="selectItem(item)" @dragstart="dragStart($event, item)">
+          <div v-for="(item, i) in getShowList(index)" :key="i + 'sl'" draggable="false" @mousedown="dragStart($event, item)" @mousemove="mousemove" @mouseup="mouseup" @click.stop="selectItem(item)" @dragstart="dragStart($event, item)">
             <el-image class="list__img-thumb" :src="item.cover" fit="contain" lazy loading="lazy"></el-image>
           </div>
         </div>
@@ -28,7 +28,7 @@
     <ul v-if="state.currentCategory" v-infinite-scroll="load" class="infinite-list" :infinite-scroll-distance="150" style="overflow: auto">
       <classHeader :is-back="true" @back="back">{{ state.currentCategory.name }}</classHeader>
       <el-space fill wrap :fillRatio="30" direction="horizontal" class="list">
-        <div v-for="(item, i) in state.list" :key="i + 'i'" class="list__item" draggable="false" @mousedown="dragStart($event, item)" @mousemove="mousemove" @mouseup="mouseup" @click.stop="selectItem(item)" @dragstart="dragStart($event, item)">
+        <div v-for="(item, i) in getFilteredList()" :key="i + 'i'" class="list__item" draggable="false" @mousedown="dragStart($event, item)" @mousemove="mousemove" @mouseup="mouseup" @click.stop="selectItem(item)" @dragstart="dragStart($event, item)">
           <!-- <edit-model :isComp="true" @action="action($event, item, i)"> -->
           <el-image class="list__img" :src="item.cover" fit="contain" lazy loading="lazy" />
           <!-- </edit-model> -->
@@ -41,69 +41,99 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, onMounted } from 'vue'
-import api from '@/api'
+import { reactive, onMounted, computed } from 'vue'
 import getComponentsData from '@/common/methods/DesignFeatures/setComponents'
 import DragHelper from '@/common/hooks/dragHelper'
 import setItem2Data from '@/common/methods/DesignFeatures/setImage'
-import { TGetCompListResult, TGetTempDetail, TTempDetail } from '@/api/home'
-import { useControlStore, useCanvasStore, useWidgetStore } from '@/store'
+import { useControlStore, useCanvasStore, useWidgetStore, useTemplateStore, useAuthStore } from '@/store'
+import type { Template } from '@/api/template'
 
 type TState = {
   loading: boolean
   loadDone: boolean
-  list: TGetCompListResult[]
   searchValue: string
-  currentCategory: TGetCompListResult | null
+  currentCategory: { id: string, name: string } | null
   types: {cate: string, name: string}[]
-  showList: TGetCompListResult[][]
 }
 
 // 拖拽效果相关
 const dragHelper = new DragHelper()
 let isDrag = false
 let startPoint = { x: 99999, y: 99999 }
-let tempDetail: TTempDetail | null = null
+let tempDetail: Template | null = null
 // 缓存组件用以减少接口请求的次数
 const compsCache: any = {}
+
 const state = reactive<TState>({
   loading: false,
   loadDone: false,
-  list: [],
   searchValue: '',
   currentCategory: null,
-  types: [],
-  showList: [],
+  types: [
+    { cate: 'text', name: '高级特效文字' },
+    { cate: 'comp', name: '示例组合模板' },
+  ],
 })
 
 const controlStore = useControlStore()
 const widgetStore = useWidgetStore()
+const templateStore = useTemplateStore()
 const dPage = useCanvasStore().dPage
-const pageOptions = { type: 1, page: 0, pageSize: 20 }
+
+// 将新后端的模板数据转换为组件格式
+const convertedList = computed(() => {
+  return templateStore.templates.map((template: Template) => ({
+    id: template.id,
+    title: template.title || template.name || '未命名组件',
+    cover: template.cover || getDefaultCover(template),
+    width: template.width || 200,
+    height: template.height || 200,
+    name: template.name,
+    cate: template.name?.includes('text') ? 'text' : 'comp',
+    state: template.state,
+    data: template.data
+  }))
+})
+
+// 生成默认封面（当没有封面时）
+function getDefaultCover(template: Template): string {
+  const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#43e97b', '#38f9d7']
+  const color = colors[template.id.length % colors.length]
+  return `data:image/svg+xml;base64,${btoa(`
+    <svg width="${template.width}" height="${template.height}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:${color};stop-opacity:1" />
+          <stop offset="100%" style="stop-color:${color}88;stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#grad)"/>
+      <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="16" fill="white" text-anchor="middle" dy=".3em">${template.title || template.name || '组件'}</text>
+    </svg>
+  `)}`
+}
 
 onMounted(async () => {
-  if (state.types.length <= 0) {
-    // const types = await api.material.getKinds({ type: 3 })
-    state.types = [
-      { cate: 'text', name: '高级特效文字' },
-      { cate: 'comp', name: '示例组合模板' },
-    ]
-    for (const iterator of state.types) {
-      const { list } = await api.home.getCompList({
-        type: 1,
-        cate: iterator.cate,
-      })
-      state.showList.push(list)
-    }
+  // 检查认证状态，如果未登录则不加载数据
+  const authStore = useAuthStore()
+  if (!authStore.isLoggedIn) {
+    console.log('用户未登录，跳过组件加载')
+    return
+  }
+  
+  // 加载所有启用的模板作为组件
+  try {
+    await templateStore.fetchEnabledTemplates()
+  } catch (error) {
+    console.error('加载组件失败:', error)
   }
 })
+
 const mouseup = (e: MouseEvent) => {
   e.preventDefault()
-  // setTimeout(() => {
   isDrag = false
   tempDetail = null
   startPoint = { x: 99999, y: 99999 }
-  // }, 10)
 }
 
 const mousemove = (e: MouseEvent) => {
@@ -115,8 +145,6 @@ const mousemove = (e: MouseEvent) => {
 
 const load = async (init: boolean = false) => {
   if (init) {
-    state.list = []
-    pageOptions.page = 0
     state.loadDone = false
   }
 
@@ -125,21 +153,19 @@ const load = async (init: boolean = false) => {
   }
 
   state.loading = true
-  pageOptions.page += 1
 
-  const res = await api.home.getCompList({
-    ...pageOptions,
-    cate: state.currentCategory?.id || state.currentCategory?.cate,
-  })
-  if (init) {
-    state.list = res?.list
-  } else {
-    res?.list.length <= 0 && (state.loadDone = true)
-    state.list = state.list.concat(res?.list)
+  try {
+    // 使用新后端的模板数据
+    await templateStore.fetchEnabledTemplates()
+    state.loadDone = true
+  } catch (error) {
+    console.error('加载组件失败:', error)
+    state.loadDone = true
+  } finally {
+    setTimeout(() => {
+      state.loading = false
+    }, 100)
   }
-  setTimeout(() => {
-    state.loading = false
-  }, 100)
 }
 
 type TActionParam = {
@@ -147,7 +173,7 @@ type TActionParam = {
   value: string
 }
 
-function action({ name, value }: TActionParam, item: TGetCompListResult, index: number) {
+function action({ name, value }: TActionParam, item: any, index: number) {
   switch (name) {
     case 'del':
       delComp(item, index)
@@ -155,12 +181,44 @@ function action({ name, value }: TActionParam, item: TGetCompListResult, index: 
   }
 }
 
-function delComp({ id }: TGetCompListResult, index: number) {
-  api.home.removeComp({ id })
-  state.list.splice(index, 1)
+function delComp({ id }: any, index: number) {
+  // 注意：这里可能需要调用删除API，但目前新后端可能没有删除接口
+  console.log('删除组件:', id)
+  // 从列表中移除
+  const templates = templateStore.templates.filter(t => t.id !== id)
+  templateStore.setTemplates(templates)
 }
 
-const selectTypes = (item: TGetCompListResult) => {
+// 获取显示列表（根据分类）
+const getShowList = (index: number) => {
+  const category = state.types[index]
+  if (!category) return []
+  
+  return convertedList.value.filter(item => {
+    if (category.cate === 'text') {
+      return item.cate === 'text' || item.name?.includes('text')
+    } else if (category.cate === 'comp') {
+      return item.cate === 'comp' || !item.name?.includes('text')
+    }
+    return true
+  }).slice(0, 6) // 只显示前6个
+}
+
+// 获取过滤后的列表
+const getFilteredList = () => {
+  if (!state.currentCategory) return convertedList.value
+  
+  return convertedList.value.filter(item => {
+    if (state.currentCategory?.cate === 'text') {
+      return item.cate === 'text' || item.name?.includes('text')
+    } else if (state.currentCategory?.cate === 'comp') {
+      return item.cate === 'comp' || !item.name?.includes('text')
+    }
+    return true
+  })
+}
+
+const selectTypes = (item: { id: string, name: string }) => {
   state.currentCategory = item
   load(true)
 }
@@ -169,33 +227,29 @@ const back = () => {
   state.currentCategory = null
 }
 
-const dragStart = async (e: MouseEvent, { id, width, height, cover }: TGetCompListResult) => {
+const dragStart = async (e: MouseEvent, { id, width, height, cover }: any) => {
   startPoint = { x: e.x, y: e.y }
-  // tempDetail = await api.home.getTempDetail({ id, type: 1 })
-  // let finalWidth = tempDetail.width
-  // 计算出拖拽到画布数值
+  
   const img = await setItem2Data({ width, height, url: cover })
   dragHelper.start(e, img.canvasWidth)
-  tempDetail = await getCompDetail({ id, type: 1 })
-  if (Array.isArray(JSON.parse(tempDetail.data))) {
-    widgetStore.setSelectItem({ data: JSON.parse(tempDetail.data), type: 'group' })
-    // store.commit('selectItem', { data: JSON.parse(tempDetail.data), type: 'group' })
+  
+  tempDetail = await getCompDetail({ id })
+  if (Array.isArray(JSON.parse(tempDetail.data || '{}'))) {
+    widgetStore.setSelectItem({ data: JSON.parse(tempDetail.data || '{}'), type: 'group' })
   } else {
-    widgetStore.setSelectItem({ data: JSON.parse(tempDetail.data), type: 'text' })
-    // store.commit('selectItem', { data: JSON.parse(tempDetail.data), type: 'text' })
+    widgetStore.setSelectItem({ data: JSON.parse(tempDetail.data || '{}'), type: 'text' })
   }
 }
 
-const selectItem = async (item: TGetCompListResult) => {
+const selectItem = async (item: any) => {
   if (isDrag) {
     return
   }
-  // store.commit('setShowMoveable', false) // 清理掉上一次的选择
+  
   controlStore.setShowMoveable(false) // 清理掉上一次的选择
 
-  tempDetail = tempDetail || (await getCompDetail({ id: item.id, type: 1 }))
-  // let group = JSON.parse(tempDetail.data)
-  const group: any = await getComponentsData(tempDetail.data)
+  tempDetail = tempDetail || (await getCompDetail({ id: item.id }))
+  const group: any = await getComponentsData(tempDetail.data || '{}')
   let parent: Record<string, any> = { x: 0, y: 0 }
   const { width: pW, height: pH } = dPage
 
@@ -203,32 +257,45 @@ const selectItem = async (item: TGetCompListResult) => {
     group.forEach((element) => {
       element.type === 'w-group' && (parent = element)
     })
+  
   if (parent.isContainer) {
     group.forEach((element: any) => {
       element.left += (pW - parent.width) / 2
       element.top += (pH - parent.height) / 2
     })
     widgetStore.addGroup(group)
-    // store.dispatch('addGroup', group)
   } else {
     group.text && (group.text = decodeURIComponent(group.text))
     group.left = pW / 2 - group.fontSize * (group.text.length / 2)
     group.top = pH / 2 - group.fontSize / 2
     widgetStore.addWidget(group)
-    // store.dispatch('addWidget', group)
   }
 }
 
-function getCompDetail(params: TGetTempDetail): Promise<TTempDetail> {
+function getCompDetail(params: { id: string }): Promise<Template> {
   // 有缓存则直接返回组件数据，否则请求获取数据
   return new Promise((resolve) => {
     if (compsCache[params.id]) {
       resolve(compsCache[params.id])
-    } else
-      api.home.getTempDetail(params).then((res: any) => {
+    } else {
+      templateStore.fetchTemplateById(params.id).then((res: Template) => {
         resolve(res)
         compsCache[params.id] = res // 缓存请求的组件数据
+      }).catch((error) => {
+        console.error('获取组件详情失败:', error)
+        // 返回一个默认的模板对象
+        resolve({
+          id: params.id,
+          title: '未知组件',
+          name: 'unknown',
+          width: 200,
+          height: 200,
+          state: 1,
+          createTime: new Date().toISOString(),
+          data: '{}'
+        })
       })
+    }
   })
 }
 

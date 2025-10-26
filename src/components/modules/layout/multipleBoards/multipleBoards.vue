@@ -90,7 +90,7 @@ onMounted(async () => {
     event.preventDefault()
     // 使用滚轮横向滚动
     listRef.value.scrollLeft += event.deltaY
-  })
+  }, { passive: false })
 })
 
 /** 计算变换量 */

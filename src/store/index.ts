@@ -14,6 +14,8 @@ import useHistoryStore from './design/history'
 import useWidgetStore from './design/widget'
 import useGroupStore from './design/group'
 import useForceStore from './design/force'
+import useAuthStore from './auth'
+import { useTemplateStore } from './template'
 
 export {
   useBaseStore,
@@ -24,4 +26,6 @@ export {
   useWidgetStore,
   useGroupStore,
   useForceStore,
+  useAuthStore,
+  useTemplateStore,
 }

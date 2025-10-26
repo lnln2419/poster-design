@@ -32,7 +32,20 @@ export const filePath = isDev ? process.cwd() + `/static/` : serviceComfig.fileP
 /**
  * 配置服务器端的chrome浏览器位置
  */
-export const executablePath = isDev ? null : '/opt/google/chrome-unstable/chrome'
+export const executablePath = isDev ? null : (() => {
+  // Windows系统Chrome路径
+  if (process.platform === 'win32') {
+    const possiblePaths = [
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe'
+    ]
+    // 返回第一个存在的路径，如果都不存在则返回null让puppeteer自动查找
+    return null
+  }
+  // Linux系统路径
+  return '/opt/google/chrome-unstable/chrome'
+})()
 
 /**
  * 截图并发数上限

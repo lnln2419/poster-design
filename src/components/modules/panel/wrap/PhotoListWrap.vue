@@ -1,152 +1,143 @@
 <!--
  * @Author: ShawnPhang
  * @Date: 2022-02-11 18:48:23
- * @Description: 照片图库 Form:Unsplash无版权图片
+ * @Description: 本地图片库 - 显示public/images目录中的图片
  * @LastEditors: ShawnPhang <https://m.palxp.cn>
  * @LastEditTime: 2024-08-14 18:50:09
 -->
 <template>
   <div class="wrap">
-    <search-header type="none" @change="searchChange" />
+    <div class="local-images-header">
+      <h3>本地图片</h3>
+      <p>显示 public/images 目录中的图片</p>
+    </div>
     <div style="height: 0.5rem" />
-    <classHeader v-show="!state.currentCategory" :types="state.types" @select="selectTypes">
-      <template v-slot="{ index }">
-        <photo-list :isShort="true" :listData="state.showList[index]" @load="getDataList" @drag="dragStart($event, state.showList[index])" @select="selectImg($event, state.showList[index])" />
-      </template>
-    </classHeader>
-    <div v-if="state.currentCategory">
-      <classHeader :is-back="true" @back="back">{{ state.currentCategory.name }}</classHeader>
-      <br /><br /><br />
-      <div style="margin: 0 1rem; height: 100vh">
-        <photo-list :isDone="state.loadDone" :listData="state.recommendImgList" @load="getDataList" @drag="dragStart" @select="selectImg" />
+    <div class="local-images-container">
+      <div v-if="state.localImages.length === 0" class="empty-state">
+        <p>暂无图片</p>
+        <p>请将图片文件放入 public/images 目录</p>
+      </div>
+      <div v-else class="images-grid">
+        <div 
+          v-for="(image, index) in state.localImages" 
+          :key="index"
+          class="image-item"
+          @click="selectLocalImage(image)"
+          @mousedown="dragStart($event, image)"
+        >
+          <el-image 
+            :src="image.url" 
+            fit="cover" 
+            lazy 
+            loading="lazy"
+            class="image-thumb"
+          >
+            <template #placeholder>
+              <div class="image-placeholder">
+                <i class="el-icon-picture"></i>
+              </div>
+            </template>
+            <template #error>
+              <div class="image-error">
+                <i class="el-icon-warning"></i>
+              </div>
+            </template>
+          </el-image>
+          <div class="image-name">{{ image.name }}</div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-// 图片列表
-// const NAME = 'img-list-wrap'
-import { toRefs, reactive, computed, onMounted } from 'vue'
-// import wImage from '../../widgets/wImage/wImage.vue'
+// 本地图片列表
+import { reactive, onMounted } from 'vue'
 import wImageSetting from '../../widgets/wImage/wImageSetting'
-import api from '@/api'
-
-import setImageData from '@/common/methods/DesignFeatures/setImage'
+import setItem2Data from '@/common/methods/DesignFeatures/setImage'
 import { storeToRefs } from 'pinia'
 import { useControlStore, useCanvasStore, useWidgetStore } from '@/store'
-import { TGetImageListResult } from '@/api/material'
 
 type TProps = {
   active?: boolean
 }
 
-type TState = {
-  recommendImgList: TGetImageListResult[]
-  loadDone: boolean
-  page: number
-  currentCategory: TCurrentCategory | null
-  types: []
-  showList: TGetImageListResult[][]
+type TLocalImage = {
+  name: string
+  url: string
+  thumb?: string
 }
 
-type TCurrentCategory = {
-  name: string
-  id?: number
+type TState = {
+  localImages: TLocalImage[]
 }
 
 const props = defineProps<TProps>()
 
 const controlStore = useControlStore()
 const widgetStore = useWidgetStore()
-
 const { dPage } = storeToRefs(useCanvasStore())
+
 const state = reactive<TState>({
-  recommendImgList: [],
-  loadDone: false,
-  page: 0,
-  currentCategory: null,
-  types: [],
-  showList: [],
-})
-let loading = false
-
-onMounted(async () => {
-  if (state.types.length <= 0) {
-    // const types = await api.material.getKinds({ type: 4 })
-    state.types = [
-      { id: 1, name: '照片列表，自适应布局' },
-      { id: 2, name: '照片列表，自适应布局' },
-    ]
-    for (const iterator of state.types) {
-      const { list } = await api.material.getImagesList({ cate: iterator.id, pageSize: 2 })
-      state.showList.push(list)
-    }
-  }
+  localImages: [],
 })
 
-const selectImg = async (index: number, list: TGetImageListResult[]) => {
-  const item = list ? list[index] : state.recommendImgList[index]
+// 本地图片列表 - 根据public/images目录中的实际文件
+const localImageFiles = [
+  'WB2510201927404_58739989817457_1760923721696_1.png',
+  'WB2510203771343_27455178478660_1760923869413_4.png'
+]
 
-  // store.commit('setShowMoveable', false) // 清理掉上一次的选择
+onMounted(() => {
+  loadLocalImages()
+})
+
+const loadLocalImages = () => {
+  state.localImages = localImageFiles.map(fileName => ({
+    name: fileName,
+    url: `/images/${fileName}`,
+    thumb: `/images/${fileName}`
+  }))
+}
+
+const selectLocalImage = async (image: TLocalImage) => {
   controlStore.setShowMoveable(false) // 清理掉上一次的选择
 
   let setting = JSON.parse(JSON.stringify(wImageSetting))
-  const img = await setImageData(item) // await getImage(item.url)
+  
+  // 创建图片对象用于setImageData - 添加默认尺寸
+  const imageData = {
+    url: image.url,
+    thumb: image.thumb || image.url,
+    name: image.name,
+    width: 200, // 默认宽度
+    height: 200 // 默认高度
+  }
+  
+  const img = await setItem2Data(imageData)
   setting.width = img.width
-  setting.height = img.height // parseInt(100 / item.value.ratio, 10)
-  setting.imgUrl = item.url
+  setting.height = img.height
+  setting.imgUrl = image.url
   const { width: pW, height: pH } = dPage.value
   setting.left = pW / 2 - img.width / 2
   setting.top = pH / 2 - img.height / 2
 
   widgetStore.addWidget(setting)
-  // store.dispatch('addWidget', setting)
 }
 
-const getDataList = async () => {
-  if (state.loadDone || loading) {
-    return
+const dragStart = (event: MouseEvent, image: TLocalImage) => {
+  const imageData = {
+    url: image.url,
+    thumb: image.thumb || image.url,
+    name: image.name
   }
-  loading = true
-  state.page += 1
-  let { list = [], total } = await api.material.getImagesList({ cate: state.currentCategory?.id, page: state.page, pageSize: 30 })
-  list.length <= 0 ? (state.loadDone = true) : (state.recommendImgList = state.recommendImgList.concat(list))
-  setTimeout(() => {
-    loading = false
-  }, 100)
-}
-
-const dragStart = (index: number, list: TGetImageListResult[]) => {
-  const item = list ? list[index] : state.recommendImgList[index]
-
-  widgetStore.setSelectItem({ data: { value: item }, type: 'image' })
-  // store.commit('selectItem', { data: { value: item }, type: 'image' })
-}
-
-const searchChange = (e: Event) => {
-  console.log(e)
-}
-
-const selectTypes = (item: TCurrentCategory) => {
-  state.currentCategory = item
-  getDataList()
-}
-
-const back = () => {
-  state.currentCategory = null
-  state.page = 0
-  state.loadDone = false
-  state.recommendImgList = []
+  
+  widgetStore.setSelectItem({ data: { value: imageData }, type: 'image' })
 }
 
 defineExpose({
-  selectImg,
-  getDataList,
+  selectLocalImage,
   dragStart,
-  searchChange,
-  selectTypes,
-  back,
 })
 </script>
 
@@ -154,5 +145,99 @@ defineExpose({
 .wrap {
   width: 100%;
   height: 100%;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.local-images-header {
+  text-align: center;
+  margin-bottom: 1rem;
+  
+  h3 {
+    margin: 0 0 0.5rem 0;
+    color: #333;
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+  
+  p {
+    margin: 0;
+    color: #666;
+    font-size: 0.9rem;
+  }
+}
+
+.local-images-container {
+  width: 100%;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: #999;
+  
+  p {
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+  }
+}
+
+.images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+
+.image-item {
+  cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.image-thumb {
+  width: 100%;
+  height: 120px;
+  display: block;
+}
+
+.image-placeholder,
+.image-error {
+  width: 100%;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f5f5;
+  color: #999;
+  font-size: 2rem;
+}
+
+.image-error {
+  background: #ffe6e6;
+  color: #ff6b6b;
+}
+
+.image-name {
+  padding: 0.5rem;
+  font-size: 0.8rem;
+  color: #666;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: #fafafa;
 }
 </style>

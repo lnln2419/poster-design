@@ -38,9 +38,23 @@ export const saveScreenshot = async (url: string, { path, width, height, thumbPa
       })
     } catch (error) {
       console.log('Puppeteer Error: ', error, '窗口大小：', width, height);
+      console.log('尝试使用默认Chrome路径...');
+      // 如果指定路径失败，尝试不指定路径让puppeteer自动查找
+      try {
+        browser = await puppeteer.launch({
+          headless: true,
+          ignoreHTTPSErrors: true,
+          args: puppeteerArgs.old,
+          defaultViewport: null,
+        })
+      } catch (secondError) {
+        console.log('Puppeteer 启动失败:', secondError);
+        reject(new Error('无法启动Chrome浏览器，请检查Chrome是否已安装'))
+        return false
+      }
     }
     if (!browser) {
-      reject()
+      reject(new Error('浏览器启动失败'))
       return false
     }
     const regulators = setTimeout(() => {

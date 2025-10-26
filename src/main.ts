@@ -7,6 +7,7 @@ import '@/assets/styles/index.less'
 import elementConfig from './utils/widgets/elementConfig'
 import { createPinia } from 'pinia'
 import I18n from '@/languages/index'
+import { useAuthStore } from '@/store'
 
 const pinia = createPinia()
 const app = createApp(App)
@@ -25,4 +26,9 @@ app
   .use(router)
   .use(utils)
   .use(I18n)
-  .mount('#app')
+
+// 初始化认证状态
+const authStore = useAuthStore()
+authStore.initializeAuth()
+
+app.mount('#app')

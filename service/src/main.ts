@@ -13,6 +13,18 @@ import router from './control/router'
 import { filePath, servicePort } from './configs'
 import handleTimeout from './utils/timeout'
 
+// 全局异常处理
+process.on('uncaughtException', (error) => {
+  console.error('未捕获的异常:', error)
+  // 不要退出进程，让服务继续运行
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('未处理的Promise拒绝:', reason)
+  console.error('Promise:', promise)
+  // 不要退出进程，让服务继续运行
+})
+
 const port = process.env.PORT || servicePort
 const app = express()
 

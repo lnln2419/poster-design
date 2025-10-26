@@ -30,13 +30,13 @@ export default function(el: HTMLElement | string, cb: Function, altLimit: boolea
       cb(down)
     }
     return false
-  })
+  }, { passive: false })
 }
 
-function addEvent(obj: TAddEventObj, xEvent: keyof HTMLElementEventMap, fn: TAddEventCb) {
+function addEvent(obj: TAddEventObj, xEvent: keyof HTMLElementEventMap, fn: TAddEventCb, options?: boolean | AddEventListenerOptions) {
   if (obj.attachEvent) {
     obj.attachEvent('on' + xEvent, fn)
   } else {
-    obj.addEventListener(xEvent, fn, false)
+    obj.addEventListener(xEvent, fn, options || false)
   }
 }

@@ -20,28 +20,27 @@
       >
         <slot />
         <resize-page v-if="needTools" :width="(dPage.width * dZoom) / 100" :height="(dPage.height * dZoom) / 100" />
-        <watermark :customStyle="{ height: (dPage.height * dZoom) / 100 + 'px' }">
-          <div
-            :id="props.pageDesignCanvasId"
-            class="design-canvas"
-            :data-type="dPage.type"
-            :data-uuid="dPage.uuid"
-            :style="{
-              width: dPage.width + 'px',
-              height: dPage.height + 'px',
-              transform: 'scale(' + dZoom / 100 + ')',
-              transformOrigin: (dZoom >= 100 ? 'center' : 'left') + ' top',
-              backgroundColor: dPage.backgroundGradient ? undefined : dPage.backgroundColor,
-              backgroundImage: dPage.backgroundImage ? `url(${dPage?.backgroundImage})` : dPage.backgroundGradient || undefined,
-              backgroundSize: dPage.backgroundTransform?.x ? 'auto' : 'cover',
-              backgroundPositionX: (dPage.backgroundTransform?.x || 0) + 'px',
-              backgroundPositionY: (dPage.backgroundTransform?.y || 0) + 'px',
-              opacity: dPage.opacity + (dZoom < 100 ? dPage.tag : 0),
-            }"
-            @mousemove="dropOver($event)"
-            @drop="drop($event)"
-            @mouseup="drop($event)"
-          >
+        <div
+          :id="props.pageDesignCanvasId"
+          class="design-canvas"
+          :data-type="dPage.type"
+          :data-uuid="dPage.uuid"
+          :style="{
+            width: dPage.width + 'px',
+            height: dPage.height + 'px',
+            transform: 'scale(' + dZoom / 100 + ')',
+            transformOrigin: (dZoom >= 100 ? 'center' : 'left') + ' top',
+            backgroundColor: dPage.backgroundGradient ? undefined : dPage.backgroundColor,
+            backgroundImage: dPage.backgroundImage ? `url(${dPage?.backgroundImage})` : dPage.backgroundGradient || undefined,
+            backgroundSize: dPage.backgroundTransform?.x ? 'auto' : 'cover',
+            backgroundPositionX: (dPage.backgroundTransform?.x || 0) + 'px',
+            backgroundPositionY: (dPage.backgroundTransform?.y || 0) + 'px',
+            opacity: dPage.opacity + (dZoom < 100 ? dPage.tag : 0),
+          }"
+          @mousemove="dropOver($event)"
+          @drop="drop($event)"
+          @mouseup="drop($event)"
+        >
             <!-- <grid-size /> -->
             <component :is="layer.type" v-for="layer in getlayers()" :id="layer.uuid" :key="layer.uuid" :class="[{ 'layer':needTools }, { 'layer-hover': layer.uuid === dHoverUuid || dActiveElement?.parent === layer.uuid, 'layer-no-hover': dActiveElement?.uuid === layer.uuid }]" :data-title="layer.type" :params="layer" :parent="dPage" :data-type="layer.type" :data-uuid="layer.uuid">
               <template v-if="layer.isContainer">
@@ -58,7 +57,6 @@
             <!-- <ref-line v-if="dSelectWidgets.length === 0" /> -->
             <!-- <size-control v-if="dSelectWidgets.length === 0" /> -->
           </div>
-        </watermark>
       </div>
     </div>
     <slot name="bottom" />
@@ -77,7 +75,6 @@ import { useCanvasStore, useControlStore, useWidgetStore } from '@/store'
 import { storeToRefs } from 'pinia'
 import { TPageState } from '@/store/design/canvas/d'
 import resizePage from './comps/resize.vue'
-import watermark from './comps/pageWatermark.vue'
 import { TdWidgetData } from '@/store/design/widget'
 import { useRoute } from 'vue-router'
 const route = useRoute()
