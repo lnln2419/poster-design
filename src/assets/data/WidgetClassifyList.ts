@@ -36,4 +36,17 @@ export default [
     show: false,
     component: 'photo-list-wrap',
   },
+  // 注释掉素材管理相关功能 - 依赖后端服务
+  // {
+  //   name: '素材',
+  //   icon: 'icon-sucai',
+  //   show: false,
+  //   component: 'graph-list-wrap',
+  // },
+  // {
+  //   name: '组件',
+  //   icon: 'icon-zujian',
+  //   show: false,
+  //   component: 'comp-list-wrap',
+  // },
 ] as TWidgetClassifyData[]

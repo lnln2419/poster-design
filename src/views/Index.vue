@@ -191,8 +191,10 @@ function zoomAdd() {
 }
 
 function save() {
-  if (!optionsRef.value) return
-  optionsRef.value.save()
+  // 保存功能已注释，依赖后端服务
+  // if (!optionsRef.value) return
+  // optionsRef.value.save()
+  console.log('保存功能已禁用 - 依赖后端服务')
 }
 
 const { handleKeydowm, handleKeyup, dealCtrl } = shortcuts.methods
@@ -260,7 +262,9 @@ const fns: any = {
     tourRef.value.open()
   },
   save: () => {
-    optionsRef.value?.save(false)
+    // 保存功能已注释，依赖后端服务
+    // optionsRef.value?.save(false)
+    console.log('保存功能已禁用 - 依赖后端服务')
   },
   download: () => {
     optionsRef.value?.download()

@@ -9,14 +9,16 @@
   <div class="top-title"><el-input v-model="state.title" placeholder="未命名的设计" class="input-wrap" /></div>
   <div class="top-icon-wrap">
     <template v-if="tempEditing">
+      <!-- 注释掉保存模板功能 - 依赖后端服务 -->
       <!-- <span style="color: #999; font-size: 14px; margin-right: 0.5rem">{{ state.stateBollean ? '启用' : '停用' }}</span> <el-switch v-model="state.stateBollean" @change="stateChange" />
       <div class="divide__line">|</div> -->
-      <el-button plain type="primary" @click="saveTemp">保存模板</el-button>
+      <!-- <el-button plain type="primary" @click="saveTemp">保存模板</el-button> -->
       <el-button @click="userStore.managerEdit(false)">取消</el-button>
       <!-- <el-button @click="$store.commit('managerEdit', false)">取消</el-button> -->
       <div class="divide__line">|</div>
     </template>
-    <el-button v-else style="margin-right: 1rem" @click="jump2Edit">修改模板</el-button>
+    <!-- 注释掉修改模板功能 - 依赖后端服务 -->
+    <!-- <el-button v-else style="margin-right: 1rem" @click="jump2Edit">修改模板</el-button> -->
     <!-- <copyRight> -->
     <slot />
     <!-- <el-button :loading="state.loading" size="large" class="primary-btn" :disabled="tempEditing" plain type="primary" @click="download">下载作品</el-button> -->
@@ -86,56 +88,56 @@ const state = reactive<TState>({
   loading: false,
 })
 
-// 保存作品
-async function save(hasCover: boolean = false) {
-  // 保存用户作品的原理和保存模板是相通的，所以这里反过来用模板示例
-  await saveTemp()
-  // // 没有任何修改记录则不保存
-  // if (dHistoryStack.value.changes.length <= 0) {
-  //   return
-  // }
-  // controlStore.setShowMoveable(false) // 清理掉上一次的选择框
-  // const { id, tempid } = route.query
-  // const data = widgetStore.dLayouts
-  // const { id: newId, stat, msg } = await api.home.saveWorks({ id: id as string, title: state.title || '未命名设计', data: JSON.stringify(data), temp_id: tempid as string, width: dPage.value.width, height: dPage.value.height })
-  // stat !== 0 ? useNotification('保存成功', '可在"我的作品"中查看') : useNotification('保存失败', msg, { type: 'error' })
-  // !id && router.push({ path: '/home', query: { id: newId }, replace: true })
-  // controlStore.setShowMoveable(true)
-}
+// 保存作品 - 已注释，依赖后端服务
+// async function save(hasCover: boolean = false) {
+//   // 保存用户作品的原理和保存模板是相通的，所以这里反过来用模板示例
+//   await saveTemp()
+//   // // 没有任何修改记录则不保存
+//   // if (dHistoryStack.value.changes.length <= 0) {
+//   //   return
+//   // }
+//   // controlStore.setShowMoveable(false) // 清理掉上一次的选择框
+//   // const { id, tempid } = route.query
+//   // const data = widgetStore.dLayouts
+//   // const { id: newId, stat, msg } = await api.home.saveWorks({ id: id as string, title: state.title || '未命名设计', data: JSON.stringify(data), temp_id: tempid as string, width: dPage.value.width, height: dPage.value.height })
+//   // stat !== 0 ? useNotification('保存成功', '可在"我的作品"中查看') : useNotification('保存失败', msg, { type: 'error' })
+//   // !id && router.push({ path: '/home', query: { id: newId }, replace: true })
+//   // controlStore.setShowMoveable(true)
+// }
 
-// 保存模板
-async function saveTemp() {
-  const { tempid, tempType: type } = route.query
-  if (!tempid) return
-  let res = null
-  const data = widgetStore.dLayouts
-  if (Number(type) == 1) {
-    // 保存组件，组合元素要保证在最后一位，才能默认选中
-    if (dWidgets.value[0].type === 'w-group') {
-      const group = dWidgets.value.shift()
-      if (!group) return
-      group.record.width = 0
-      group.record.height = 0
-      dWidgets.value.push(group)
-    }
-    // TODO：如果保存组件不存在组合，则添加组合。该功能待优化
-    if (!dWidgets.value.some((x: Record<string, any>) => x.type === 'w-group')) {
-      alert('提交组件必须为组合！')
-      return
-      // proxy.dWidgets.push(wGroup.setting)
-    }
-    res = await api.home.saveTemp({ id: tempid, type, title: state.title || '未命名组件', data: JSON.stringify(dWidgets.value), width: dPage.value.width, height: dPage.value.height })
-  } else res = await api.home.saveTemp({ id: tempid, title: state.title || '未命名模板', data: JSON.stringify(data), width: dPage.value.width, height: dPage.value.height })
-  res.stat != 0 && useNotification('保存成功', '模板内容已变更')
-  !tempid && router.push({ path: '/home', query: { tempid: res.id }, replace: true })
-}
+// 保存模板 - 已注释，依赖后端服务
+// async function saveTemp() {
+//   const { tempid, tempType: type } = route.query
+//   if (!tempid) return
+//   let res = null
+//   const data = widgetStore.dLayouts
+//   if (Number(type) == 1) {
+//     // 保存组件，组合元素要保证在最后一位，才能默认选中
+//     if (dWidgets.value[0].type === 'w-group') {
+//       const group = dWidgets.value.shift()
+//       if (!group) return
+//       group.record.width = 0
+//       group.record.height = 0
+//       dWidgets.value.push(group)
+//     }
+//     // TODO：如果保存组件不存在组合，则添加组合。该功能待优化
+//     if (!dWidgets.value.some((x: Record<string, any>) => x.type === 'w-group')) {
+//       alert('提交组件必须为组合！')
+//       return
+//       // proxy.dWidgets.push(wGroup.setting)
+//     }
+//     res = await api.home.saveTemp({ id: tempid, type, title: state.title || '未命名组件', data: JSON.stringify(dWidgets.value), width: dPage.value.width, height: dPage.value.height })
+//   } else res = await api.home.saveTemp({ id: tempid, title: state.title || '未命名模板', data: JSON.stringify(data), width: dPage.value.width, height: dPage.value.height })
+//   res.stat != 0 && useNotification('保存成功', '模板内容已变更')
+//   !tempid && router.push({ path: '/home', query: { tempid: res.id }, replace: true })
+// }
 
-// 停用启用
-async function stateChange(e: string | number | boolean) {
-  const { tempid, tempType: type } = route.query
-  const { stat } = await api.home.saveTemp({ id: tempid, type, state: e ? 1 : 0 })
-  stat != 0 && useNotification('保存成功', '模板内容已变更')
-}
+// 停用启用 - 已注释，依赖后端服务
+// async function stateChange(e: string | number | boolean) {
+//   const { tempid, tempType: type } = route.query
+//   const { stat } = await api.home.saveTemp({ id: tempid, type, state: e ? 1 : 0 })
+//   stat != 0 && useNotification('保存成功', '模板内容已变更')
+// }
 async function download() {
   if (state.loading === true) {
     useNotification('作品导出中', '当前有作品正在导出，请稍候再试')
@@ -154,7 +156,7 @@ async function download() {
     emit('change', { downloadPercent: 100, downloadText: '作品下载成功' })
     state.loading = false
   }
-  await save(true)
+  // await save(true) // 注释掉保存功能调用 - 依赖后端服务
   const { id, tempid } = route.query
   if (!id && !tempid) {
     emit('change', { downloadPercent: 0, downloadText: '请稍候..' })
@@ -328,9 +330,9 @@ function checkDownloadPoster({ layers }: any) {
 
 defineExpose({
   download,
-  save,
-  saveTemp,
-  stateChange,
+  // save, // 已注释，依赖后端服务
+  // saveTemp, // 已注释，依赖后端服务
+  // stateChange, // 已注释，依赖后端服务
   load,
 })
 </script>

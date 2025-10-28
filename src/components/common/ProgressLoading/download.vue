@@ -17,7 +17,9 @@
       <div v-show="percent < 100" class="text btn" @click="cancel">{{ cancelText }}</div>
       <div class="text info">{{ msg }}</div>
       <div v-show="percent >= 100" class="success">
-        <img src="https://store.palxp.cn/Celebration.png" alt="" srcset="" />
+        <!-- 使用本地成功图标替代外部图片 -->
+        <div class="success-icon">✅</div>
+        <div class="success-text">下载完成</div>
       </div>
     </div>
   </div>
@@ -131,9 +133,20 @@ defineExpose({
 }
 .success {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  img {
-    width: 80%;
+  margin-top: 1rem;
+  
+  .success-icon {
+    font-size: 48px;
+    margin-bottom: 0.5rem;
+  }
+  
+  .success-text {
+    font-size: 18px;
+    color: #67c23a;
+    font-weight: 600;
   }
 }
 </style>

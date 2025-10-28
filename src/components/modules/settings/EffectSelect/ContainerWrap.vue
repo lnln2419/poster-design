@@ -80,7 +80,7 @@ onMounted(async () => {
   await nextTick()
   state.effectSelect = props?.modelValue || ''
   // state.strength = props?.degree || state.strength
-  getList()
+  // getList() // 禁用特效选择功能
 })
 
 async function getList() {
@@ -95,7 +95,7 @@ async function getList() {
 watch(
   () => state.type,
   (value) => {
-    getList()
+    // getList() // 禁用特效选择功能
   },
 )
 defineExpose({
