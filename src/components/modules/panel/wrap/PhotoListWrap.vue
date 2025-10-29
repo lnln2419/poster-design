@@ -7,15 +7,15 @@
 -->
 <template>
   <div class="wrap">
-    <div class="local-images-header">
-      <h3>本地图片</h3>
-      <p>显示 public/images 目录中的图片</p>
+  <div class="local-images-header">
+      <h3>图片</h3>
+      <p>从接口加载高清图片（hdImages）</p>
     </div>
     <div style="height: 0.5rem" />
     <div class="local-images-container">
       <div v-if="state.localImages.length === 0" class="empty-state">
         <p>暂无图片</p>
-        <p>请将图片文件放入 public/images 目录</p>
+        <p>尝试刷新或检查接口数据</p>
       </div>
       <div v-else class="images-grid">
         <div 
@@ -51,12 +51,13 @@
 </template>
 
 <script setup lang="ts">
-// 本地图片列表
+// 从接口加载图片
 import { reactive, onMounted } from 'vue'
 import wImageSetting from '../../widgets/wImage/wImageSetting'
 import setItem2Data from '@/common/methods/DesignFeatures/setImage'
 import { storeToRefs } from 'pinia'
 import { useControlStore, useCanvasStore, useWidgetStore } from '@/store'
+import api from '@/api'
 
 type TProps = {
   active?: boolean
@@ -82,22 +83,70 @@ const state = reactive<TState>({
   localImages: [],
 })
 
-// 本地图片列表 - 根据public/images目录中的实际文件
-const localImageFiles = [
-  'WB2510201927404_58739989817457_1760923721696_1.png',
-  'WB2510203771343_27455178478660_1760923869413_4.png'
-]
-
 onMounted(() => {
-  loadLocalImages()
+  loadImagesFromApi()
 })
 
-const loadLocalImages = () => {
-  state.localImages = localImageFiles.map(fileName => ({
-    name: fileName,
-    url: `/images/${fileName}`,
-    thumb: `/images/${fileName}`
-  }))
+const loadImagesFromApi = async () => {
+  try {
+    const res = await api.redrawTask.getRedrawTaskPage({ pageNo: 1, pageSize: 20 })
+    const list = res.data?.list || []
+    const results: TLocalImage[] = []
+    // 提取 URL 文件名结尾的数字作为序号（如 xxx_12.jpg => 12）
+    const extractIndexFromUrl = (u: string): number | null => {
+      try {
+        const withoutQuery = u.split('?')[0]
+        const lastSlash = withoutQuery.lastIndexOf('/')
+        const fileName = lastSlash >= 0 ? withoutQuery.slice(lastSlash + 1) : withoutQuery
+        const nameOnly = fileName.replace(/\.[^.]*$/, '')
+        const match = nameOnly.match(/(\d+)$/)
+        return match ? parseInt(match[1], 10) : null
+      } catch (e) {
+        return null
+      }
+    }
+
+    list.forEach((item: any) => {
+      const str = item.hdImages
+      if (typeof str !== 'string' || str.trim().length === 0) return
+
+      // 解析需重制序号（支持 number、字符串“1,2,3”、数组）
+      const raw = (item as any).need_redraw_index ?? (item as any).needRedrawIndex
+      let indices: number[] = []
+      if (Array.isArray(raw)) {
+        indices = raw.map((n) => parseInt(n, 10)).filter((n) => !isNaN(n))
+      } else if (typeof raw === 'string') {
+        indices = raw
+          .split(',')
+          .map((s) => parseInt(s.trim(), 10))
+          .filter((n) => !isNaN(n))
+      } else if (typeof raw === 'number') {
+        indices = [raw]
+      }
+
+      if (indices.length === 0) return
+      const indexSet = new Set(indices)
+
+      const hdList: string[] = str
+        .split(',')
+        .map((s: string) => s.trim())
+        .filter((s: string) => s.length > 0)
+
+      hdList.forEach((u) => {
+        const idx = extractIndexFromUrl(u)
+        if (idx != null && indexSet.has(idx)) {
+          const name = `${item.id ?? ''}_${idx}`
+          // 去重：如果该 URL 已添加则跳过
+          if (!results.find((r) => r.url === u)) {
+            results.push({ name, url: u, thumb: u })
+          }
+        }
+      })
+    })
+    state.localImages = results
+  } catch (e) {
+    state.localImages = []
+  }
 }
 
 const selectLocalImage = async (image: TLocalImage) => {
@@ -105,13 +154,13 @@ const selectLocalImage = async (image: TLocalImage) => {
 
   let setting = JSON.parse(JSON.stringify(wImageSetting))
   
-  // 创建图片对象用于setImageData - 添加默认尺寸
+  // 创建图片对象用于setImageData - 使用0触发获取原始尺寸
   const imageData = {
     url: image.url,
     thumb: image.thumb || image.url,
     name: image.name,
-    width: 200, // 默认宽度
-    height: 200 // 默认高度
+    width: 0,
+    height: 0
   }
   
   const img = await setItem2Data(imageData)
